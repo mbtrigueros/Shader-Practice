@@ -1,0 +1,36 @@
+#pragma kernel CSMain
+
+RWStructuredBuffer<float3> vertices;
+
+float _Time;
+float _DeformAmount;
+float _DeformRadius;
+float3 _TargetPosition;
+int _VertexCount;
+
+[numthreads(64, 1, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _VertexCount) return;
+
+    float3 pos = vertices[id.x];
+    
+    float dist = distance(pos, _TargetPosition);
+    float influence = smoothstep(_DeformRadius, 0.0, dist);
+
+    // Movimiento tipo masa viva: combinación de senos en distintos ejes
+    float3 organicWaves;
+    organicWaves.x = sin(_Time * 1.4 + pos.y * 0.8) * 0.1;
+    organicWaves.y = sin(_Time * 1.1 + pos.z * 0.5) * 0.1;
+    organicWaves.z = sin(_Time * 1.9 + pos.x * 2.0) * 0.1;
+
+    // Movimiento de alejamiento del jugador (más leve)
+    float3 outward = normalize(pos - _TargetPosition) * 0.025;
+
+    // Combinamos ambas deformaciones
+    float3 finalOffset = (organicWaves + outward) * influence * _DeformAmount;
+
+    pos += finalOffset;
+
+    vertices[id.x] = pos;
+}
